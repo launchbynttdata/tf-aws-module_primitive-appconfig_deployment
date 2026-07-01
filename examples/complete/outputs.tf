@@ -12,40 +12,42 @@
 
 output "id" {
   description = "The deployment ID."
-  value       = aws_appconfig_deployment.deployment.id
+  value       = module.deployment.id
 }
-
 output "arn" {
   description = "The ARN of the deployment."
-  value       = aws_appconfig_deployment.deployment.arn
+  value       = module.deployment.arn
 }
-
 output "deployment_number" {
   description = "The deployment number."
-  value       = aws_appconfig_deployment.deployment.deployment_number
+  value       = module.deployment.deployment_number
 }
-
 output "state" {
   description = "The deployment state."
-  value       = aws_appconfig_deployment.deployment.state
+  value       = module.deployment.state
 }
-
 output "application_id" {
   description = "The application ID."
-  value       = aws_appconfig_deployment.deployment.application_id
+  value       = module.deployment.application_id
 }
-
 output "environment_id" {
   description = "The environment ID."
-  value       = aws_appconfig_deployment.deployment.environment_id
+  value       = module.deployment.environment_id
 }
-
 output "configuration_profile_id" {
   description = "The configuration profile ID."
-  value       = aws_appconfig_deployment.deployment.configuration_profile_id
+  value       = module.deployment.configuration_profile_id
 }
-
 output "configuration_version" {
   description = "The configuration version."
-  value       = aws_appconfig_deployment.deployment.configuration_version
+  value       = module.deployment.configuration_version
+}
+output "expected_configuration_version" {
+  description = "Expected configuration version."
+  value       = tostring(aws_appconfig_hosted_configuration_version.example.version_number)
+}
+
+output "region" {
+  description = "The AWS Region where the example resources are deployed."
+  value       = data.aws_region.current.region
 }
