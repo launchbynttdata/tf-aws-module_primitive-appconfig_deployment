@@ -58,8 +58,12 @@ No modules.
 | <a name="output_configuration_profile_id"></a> [configuration\_profile\_id](#output\_configuration\_profile\_id) | The configuration profile ID. |
 | <a name="output_configuration_version"></a> [configuration\_version](#output\_configuration\_version) | The configuration version. |
 | <a name="output_deployment_number"></a> [deployment\_number](#output\_deployment\_number) | The deployment number. |
+| <a name="output_deployment_strategy_id"></a> [deployment\_strategy\_id](#output\_deployment\_strategy\_id) | The deployment strategy ID. |
+| <a name="output_description"></a> [description](#output\_description) | The deployment description. |
 | <a name="output_environment_id"></a> [environment\_id](#output\_environment\_id) | The environment ID. |
 | <a name="output_id"></a> [id](#output\_id) | The deployment ID. |
+| <a name="output_kms_key_arn"></a> [kms\_key\_arn](#output\_kms\_key\_arn) | The ARN of the KMS key used to encrypt configuration data. |
+| <a name="output_kms_key_identifier"></a> [kms\_key\_identifier](#output\_kms\_key\_identifier) | The KMS key identifier used to encrypt configuration data. |
 | <a name="output_state"></a> [state](#output\_state) | The deployment state. |
 <!-- END_TF_DOCS -->
 

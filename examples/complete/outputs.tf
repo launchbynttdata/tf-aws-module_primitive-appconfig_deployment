@@ -51,3 +51,13 @@ output "region" {
   description = "The AWS Region where the example resources are deployed."
   value       = data.aws_region.current.region
 }
+
+output "expected_kms_key_arn" {
+  description = "Expected KMS key ARN."
+  value       = aws_kms_key.appconfig.arn
+}
+
+output "expected_kms_key_identifier" {
+  description = "Expected KMS key identifier."
+  value       = aws_kms_key.appconfig.arn
+}

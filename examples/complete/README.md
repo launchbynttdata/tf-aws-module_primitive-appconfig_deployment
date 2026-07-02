@@ -21,6 +21,44 @@ data "aws_region" "current" {}
 
 data "aws_caller_identity" "current" {}
 
+data "aws_iam_policy_document" "appconfig_kms" {
+  statement {
+    sid     = "EnableAccountAdministration"
+    effect  = "Allow"
+    actions = ["kms:*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "AllowAppConfigUse"
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:GenerateDataKey*",
+    ]
+    principals {
+      type        = "Service"
+      identifiers = ["appconfig.amazonaws.com"]
+    }
+    resources = ["*"]
+  }
+}
+
+resource "aws_kms_key" "appconfig" {
+  description         = "KMS key for AppConfig hosted configuration data"
+  enable_key_rotation = true
+  policy              = data.aws_iam_policy_document.appconfig_kms.json
+  tags                = merge(var.tags, { Name = module.resource_names["kms_key"].standard })
+}
+
+
+
 module "resource_names" {
   source  = "terraform.registry.launch.nttdata.com/module_library/resource_name/launch"
   version = "~> 2.0"
@@ -53,7 +91,8 @@ resource "aws_appconfig_configuration_profile" "example" {
   application_id = aws_appconfig_application.example.id
   name           = module.resource_names["configuration_profile"].standard
   location_uri   = "hosted"
-  type           = "AWS.AppConfig.FeatureFlags"
+  type               = "AWS.AppConfig.FeatureFlags"
+  kms_key_identifier = aws_kms_key.appconfig.arn
   tags           = var.tags
 }
 
@@ -64,6 +103,7 @@ resource "aws_appconfig_hosted_configuration_version" "example" {
   content_type             = "application/json"
 }
 
+# Instant deployment keeps the lifecycle test fast while still exercising StartDeployment.
 resource "aws_appconfig_deployment_strategy" "example" {
   name                           = module.resource_names["deployment_strategy"].standard
   deployment_duration_in_minutes = 0
@@ -81,6 +121,7 @@ module "deployment" {
   configuration_version    = aws_appconfig_hosted_configuration_version.example.version_number
   deployment_strategy_id   = aws_appconfig_deployment_strategy.example.id
   environment_id           = aws_appconfig_environment.example.environment_id
+  kms_key_identifier       = aws_kms_key.appconfig.arn
   description              = var.description
   tags                     = var.tags
 }
@@ -110,6 +151,9 @@ module "deployment" {
 | [aws_appconfig_deployment_strategy.example](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appconfig_deployment_strategy) | resource |
 | [aws_appconfig_environment.example](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appconfig_environment) | resource |
 | [aws_appconfig_hosted_configuration_version.example](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appconfig_hosted_configuration_version) | resource |
+| [aws_kms_key.appconfig](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
+| [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
+| [aws_iam_policy_document.appconfig_kms](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 
 ## Inputs
@@ -137,6 +181,8 @@ module "deployment" {
 | <a name="output_deployment_number"></a> [deployment\_number](#output\_deployment\_number) | The deployment number. |
 | <a name="output_environment_id"></a> [environment\_id](#output\_environment\_id) | The environment ID. |
 | <a name="output_expected_configuration_version"></a> [expected\_configuration\_version](#output\_expected\_configuration\_version) | Expected configuration version. |
+| <a name="output_expected_kms_key_arn"></a> [expected\_kms\_key\_arn](#output\_expected\_kms\_key\_arn) | Expected KMS key ARN. |
+| <a name="output_expected_kms_key_identifier"></a> [expected\_kms\_key\_identifier](#output\_expected\_kms\_key\_identifier) | Expected KMS key identifier. |
 | <a name="output_id"></a> [id](#output\_id) | The deployment ID. |
 | <a name="output_region"></a> [region](#output\_region) | The AWS Region where the example resources are deployed. |
 | <a name="output_state"></a> [state](#output\_state) | The deployment state. |

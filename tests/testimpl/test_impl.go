@@ -14,9 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestComposableComplete verifies the deployed AppConfig deployment.
+// TestComposableComplete verifies the deployed AppConfig deployment and exercises a reversible tag write.
 func TestComposableComplete(t *testing.T, ctx types.TestContext) {
-	verifyDeployment(t, ctx)
+	client, arn := verifyDeployment(t, ctx)
+	exerciseTagWrite(t, client, arn)
 }
 
 // TestComposableCompleteReadOnly verifies the deployed AppConfig deployment using read-only AWS API calls.
@@ -24,15 +25,18 @@ func TestComposableCompleteReadOnly(t *testing.T, ctx types.TestContext) {
 	verifyDeployment(t, ctx)
 }
 
-func verifyDeployment(t *testing.T, ctx types.TestContext) {
+func verifyDeployment(t *testing.T, ctx types.TestContext) (*appconfig.Client, string) {
 	opts := ctx.TerratestTerraformOptions()
 	region := terraform.Output(t, opts, "region")
+	arn := terraform.Output(t, opts, "arn")
 	applicationID := terraform.Output(t, opts, "application_id")
 	environmentID := terraform.Output(t, opts, "environment_id")
 	configurationProfileID := terraform.Output(t, opts, "configuration_profile_id")
 	configurationVersion := terraform.Output(t, opts, "configuration_version")
 	deploymentNumber := int32Output(t, ctx, "deployment_number")
 	state := terraform.Output(t, opts, "state")
+	expectedKMSKeyARN := terraform.Output(t, opts, "expected_kms_key_arn")
+	expectedKMSKeyIdentifier := terraform.Output(t, opts, "expected_kms_key_identifier")
 
 	require.NotEqual(t, int32(0), deploymentNumber)
 	assert.Equal(t, terraform.Output(t, opts, "expected_configuration_version"), configurationVersion)
@@ -51,6 +55,10 @@ func verifyDeployment(t *testing.T, ctx types.TestContext) {
 	assert.Equal(t, configurationVersion, aws.ToString(deployment.ConfigurationVersion))
 	assert.Equal(t, deploymentNumber, deployment.DeploymentNumber)
 	assert.Equal(t, state, string(deployment.State))
+	assert.Equal(t, expectedKMSKeyARN, aws.ToString(deployment.KmsKeyArn))
+	assert.Equal(t, expectedKMSKeyIdentifier, aws.ToString(deployment.KmsKeyIdentifier))
+
+	return client, arn
 }
 
 func appConfigClient(t *testing.T, region string) *appconfig.Client {
@@ -60,6 +68,23 @@ func appConfigClient(t *testing.T, region string) *appconfig.Client {
 	require.NoError(t, err)
 
 	return appconfig.NewFromConfig(cfg)
+}
+
+func exerciseTagWrite(t *testing.T, client *appconfig.Client, resourceARN string) {
+	t.Helper()
+
+	const tagKey = "codex-functional-test"
+	_, err := client.TagResource(context.Background(), &appconfig.TagResourceInput{
+		ResourceArn: aws.String(resourceARN),
+		Tags:        map[string]string{tagKey: "true"},
+	})
+	require.NoError(t, err)
+
+	_, err = client.UntagResource(context.Background(), &appconfig.UntagResourceInput{
+		ResourceArn: aws.String(resourceARN),
+		TagKeys:     []string{tagKey},
+	})
+	require.NoError(t, err)
 }
 
 func int32Output(t *testing.T, ctx types.TestContext, name string) int32 {

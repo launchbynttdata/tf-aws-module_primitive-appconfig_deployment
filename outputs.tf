@@ -49,3 +49,23 @@ output "configuration_version" {
   description = "The configuration version."
   value       = aws_appconfig_deployment.deployment.configuration_version
 }
+
+output "deployment_strategy_id" {
+  description = "The deployment strategy ID."
+  value       = aws_appconfig_deployment.deployment.deployment_strategy_id
+}
+
+output "description" {
+  description = "The deployment description."
+  value       = aws_appconfig_deployment.deployment.description
+}
+
+output "kms_key_identifier" {
+  description = "The KMS key identifier used to encrypt configuration data."
+  value       = aws_appconfig_deployment.deployment.kms_key_identifier
+}
+
+output "kms_key_arn" {
+  description = "The ARN of the KMS key used to encrypt configuration data."
+  value       = aws_appconfig_deployment.deployment.kms_key_arn
+}
