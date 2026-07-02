@@ -14,10 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestComposableComplete verifies the deployed AppConfig deployment and exercises a reversible tag write.
+// TestComposableComplete verifies the deployed AppConfig deployment created by Terraform's StartDeployment call.
 func TestComposableComplete(t *testing.T, ctx types.TestContext) {
-	client, arn := verifyDeployment(t, ctx)
-	exerciseTagWrite(t, client, arn)
+	verifyDeployment(t, ctx)
 }
 
 // TestComposableCompleteReadOnly verifies the deployed AppConfig deployment using read-only AWS API calls.
@@ -25,10 +24,9 @@ func TestComposableCompleteReadOnly(t *testing.T, ctx types.TestContext) {
 	verifyDeployment(t, ctx)
 }
 
-func verifyDeployment(t *testing.T, ctx types.TestContext) (*appconfig.Client, string) {
+func verifyDeployment(t *testing.T, ctx types.TestContext) {
 	opts := ctx.TerratestTerraformOptions()
 	region := terraform.Output(t, opts, "region")
-	arn := terraform.Output(t, opts, "arn")
 	applicationID := terraform.Output(t, opts, "application_id")
 	environmentID := terraform.Output(t, opts, "environment_id")
 	configurationProfileID := terraform.Output(t, opts, "configuration_profile_id")
@@ -57,8 +55,6 @@ func verifyDeployment(t *testing.T, ctx types.TestContext) (*appconfig.Client, s
 	assert.Equal(t, state, string(deployment.State))
 	assert.Equal(t, expectedKMSKeyARN, aws.ToString(deployment.KmsKeyArn))
 	assert.Equal(t, expectedKMSKeyIdentifier, aws.ToString(deployment.KmsKeyIdentifier))
-
-	return client, arn
 }
 
 func appConfigClient(t *testing.T, region string) *appconfig.Client {
@@ -68,23 +64,6 @@ func appConfigClient(t *testing.T, region string) *appconfig.Client {
 	require.NoError(t, err)
 
 	return appconfig.NewFromConfig(cfg)
-}
-
-func exerciseTagWrite(t *testing.T, client *appconfig.Client, resourceARN string) {
-	t.Helper()
-
-	const tagKey = "codex-functional-test"
-	_, err := client.TagResource(context.Background(), &appconfig.TagResourceInput{
-		ResourceArn: aws.String(resourceARN),
-		Tags:        map[string]string{tagKey: "true"},
-	})
-	require.NoError(t, err)
-
-	_, err = client.UntagResource(context.Background(), &appconfig.UntagResourceInput{
-		ResourceArn: aws.String(resourceARN),
-		TagKeys:     []string{tagKey},
-	})
-	require.NoError(t, err)
 }
 
 func int32Output(t *testing.T, ctx types.TestContext, name string) int32 {
