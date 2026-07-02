@@ -57,6 +57,18 @@ variable "content" {
   description = "Hosted feature flag document."
   type        = string
   default     = <<EOT
-{"flags":{"example":{"name":"example","enabled":true}},"values":{"example":{"enabled":true}}}
+{
+  "version": "1",
+  "flags": {
+    "example": {
+      "name": "example"
+    }
+  },
+  "values": {
+    "example": {
+      "enabled": true
+    }
+  }
+}
 EOT
 }
