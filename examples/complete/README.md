@@ -96,11 +96,45 @@ resource "aws_appconfig_configuration_profile" "example" {
   tags           = var.tags
 }
 
+# AppConfig FeatureFlags content permadiff
+#
+# Problem: AWS.AppConfig.FeatureFlags profiles are not byte-stable in Terraform.
+# On create, AppConfig injects _createdAt and _updatedAt into the JSON document.
+# On every refresh, Terraform compares submitted content with what AWS returns;
+# they differ even when the flags themselves are unchanged, so a plain
+# aws_appconfig_hosted_configuration_version plans a destroy/create on every run.
+# That cascades into aws_appconfig_deployment because configuration_version changes.
+#
+# Approach: This is not the usual "set content and let drift detection work" pattern.
+# - ignore_changes on content suppresses the false-positive AWS metadata drift.
+# - terraform_data tracks var.feature_flag_content as the source of truth.
+# - replace_triggered_by ties replacement to intentional content changes only.
+#
+# Operations:
+# - No-op plans stay empty (idempotent applies).
+# - Changing feature_flag_content creates a new hosted configuration version and,
+#   via module.deployment below, a new deployment.
+# - Plans will not show a content diff (content is sensitive and ignored on read);
+#   look for terraform_data and hosted_configuration_version replacement instead.
+# - Content changes made outside Terraform (console, CLI) are not reconciled;
+#   subsequent applies will not roll them back.
+resource "terraform_data" "example_feature_flag_content" {
+  input = var.feature_flag_content
+}
+
 resource "aws_appconfig_hosted_configuration_version" "example" {
   application_id           = aws_appconfig_application.example.id
   configuration_profile_id = aws_appconfig_configuration_profile.example.configuration_profile_id
-  content                  = var.content
+  content                  = jsonencode(var.feature_flag_content)
   content_type             = "application/json"
+
+  lifecycle {
+    ignore_changes = [content]
+
+    replace_triggered_by = [
+      terraform_data.example_feature_flag_content,
+    ]
+  }
 }
 
 # Instant deployment keeps the lifecycle test fast while still exercising StartDeployment.
@@ -152,6 +186,7 @@ module "deployment" {
 | [aws_appconfig_environment.example](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appconfig_environment) | resource |
 | [aws_appconfig_hosted_configuration_version.example](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appconfig_hosted_configuration_version) | resource |
 | [aws_kms_key.appconfig](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
+| [terraform_data.example_feature_flag_content](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 | [aws_iam_policy_document.appconfig_kms](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
@@ -161,8 +196,8 @@ module "deployment" {
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_class_env"></a> [class\_env](#input\_class\_env) | Environment class for generated resource names. | `string` | n/a | yes |
-| <a name="input_content"></a> [content](#input\_content) | Hosted feature flag document. | `string` | `"{\n  \"version\": \"1\",\n  \"flags\": {\n    \"example\": {\n      \"name\": \"example\"\n    }\n  },\n  \"values\": {\n    \"example\": {\n      \"enabled\": true\n    }\n  }\n}\n"` | no |
 | <a name="input_description"></a> [description](#input\_description) | Deployment description. | `string` | `"Example AppConfig deployment."` | no |
+| <a name="input_feature_flag_content"></a> [feature\_flag\_content](#input\_feature\_flag\_content) | Hosted feature flag document. This is the source of truth for configuration<br/>content; changes here create a new hosted configuration version (see the<br/>terraform\_data and lifecycle comments in main.tf). | <pre>object({<br/>    version = string<br/>    flags = map(object({<br/>      name = string<br/>    }))<br/>    values = map(object({<br/>      enabled = bool<br/>    }))<br/>  })</pre> | <pre>{<br/>  "flags": {<br/>    "example": {<br/>      "name": "example"<br/>    }<br/>  },<br/>  "values": {<br/>    "example": {<br/>      "enabled": true<br/>    }<br/>  },<br/>  "version": "1"<br/>}</pre> | no |
 | <a name="input_instance_env"></a> [instance\_env](#input\_instance\_env) | Environment instance number for generated resource names. | `number` | n/a | yes |
 | <a name="input_instance_resource"></a> [instance\_resource](#input\_instance\_resource) | Resource instance number for generated resource names. | `number` | n/a | yes |
 | <a name="input_logical_product_family"></a> [logical\_product\_family](#input\_logical\_product\_family) | Logical product family for generated resource names. | `string` | n/a | yes |

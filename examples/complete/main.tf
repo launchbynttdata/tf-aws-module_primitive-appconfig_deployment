@@ -89,11 +89,45 @@ resource "aws_appconfig_configuration_profile" "example" {
   tags               = var.tags
 }
 
+# AppConfig FeatureFlags content permadiff
+#
+# Problem: AWS.AppConfig.FeatureFlags profiles are not byte-stable in Terraform.
+# On create, AppConfig injects _createdAt and _updatedAt into the JSON document.
+# On every refresh, Terraform compares submitted content with what AWS returns;
+# they differ even when the flags themselves are unchanged, so a plain
+# aws_appconfig_hosted_configuration_version plans a destroy/create on every run.
+# That cascades into aws_appconfig_deployment because configuration_version changes.
+#
+# Approach: This is not the usual "set content and let drift detection work" pattern.
+# - ignore_changes on content suppresses the false-positive AWS metadata drift.
+# - terraform_data tracks var.feature_flag_content as the source of truth.
+# - replace_triggered_by ties replacement to intentional content changes only.
+#
+# Operations:
+# - No-op plans stay empty (idempotent applies).
+# - Changing feature_flag_content creates a new hosted configuration version and,
+#   via module.deployment below, a new deployment.
+# - Plans will not show a content diff (content is sensitive and ignored on read);
+#   look for terraform_data and hosted_configuration_version replacement instead.
+# - Content changes made outside Terraform (console, CLI) are not reconciled;
+#   subsequent applies will not roll them back.
+resource "terraform_data" "example_feature_flag_content" {
+  input = var.feature_flag_content
+}
+
 resource "aws_appconfig_hosted_configuration_version" "example" {
   application_id           = aws_appconfig_application.example.id
   configuration_profile_id = aws_appconfig_configuration_profile.example.configuration_profile_id
-  content                  = var.content
+  content                  = jsonencode(var.feature_flag_content)
   content_type             = "application/json"
+
+  lifecycle {
+    ignore_changes = [content]
+
+    replace_triggered_by = [
+      terraform_data.example_feature_flag_content,
+    ]
+  }
 }
 
 # Instant deployment keeps the lifecycle test fast while still exercising StartDeployment.

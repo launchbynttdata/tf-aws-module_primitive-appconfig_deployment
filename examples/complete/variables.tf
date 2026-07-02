@@ -53,22 +53,33 @@ variable "description" {
   type        = string
   default     = "Example AppConfig deployment."
 }
-variable "content" {
-  description = "Hosted feature flag document."
-  type        = string
-  default     = <<EOT
-{
-  "version": "1",
-  "flags": {
-    "example": {
-      "name": "example"
+
+variable "feature_flag_content" {
+  description = <<-EOT
+    Hosted feature flag document. This is the source of truth for configuration
+    content; changes here create a new hosted configuration version (see the
+    terraform_data and lifecycle comments in main.tf).
+  EOT
+  type = object({
+    version = string
+    flags = map(object({
+      name = string
+    }))
+    values = map(object({
+      enabled = bool
+    }))
+  })
+  default = {
+    version = "1"
+    flags = {
+      example = {
+        name = "example"
+      }
     }
-  },
-  "values": {
-    "example": {
-      "enabled": true
+    values = {
+      example = {
+        enabled = true
+      }
     }
   }
-}
-EOT
 }
