@@ -26,18 +26,18 @@ func TestComposableCompleteReadOnly(t *testing.T, ctx types.TestContext) {
 
 func verifyDeployment(t *testing.T, ctx types.TestContext) {
 	opts := ctx.TerratestTerraformOptions()
-	region := terraform.Output(t, opts, "region")
-	applicationID := terraform.Output(t, opts, "application_id")
-	environmentID := terraform.Output(t, opts, "environment_id")
-	configurationProfileID := terraform.Output(t, opts, "configuration_profile_id")
-	configurationVersion := terraform.Output(t, opts, "configuration_version")
+	region := terraform.OutputContext(t, context.Background(), opts, "region")
+	applicationID := terraform.OutputContext(t, context.Background(), opts, "application_id")
+	environmentID := terraform.OutputContext(t, context.Background(), opts, "environment_id")
+	configurationProfileID := terraform.OutputContext(t, context.Background(), opts, "configuration_profile_id")
+	configurationVersion := terraform.OutputContext(t, context.Background(), opts, "configuration_version")
 	deploymentNumber := int32Output(t, ctx, "deployment_number")
-	state := terraform.Output(t, opts, "state")
-	expectedKMSKeyARN := terraform.Output(t, opts, "expected_kms_key_arn")
-	expectedKMSKeyIdentifier := terraform.Output(t, opts, "expected_kms_key_identifier")
+	state := terraform.OutputContext(t, context.Background(), opts, "state")
+	expectedKMSKeyARN := terraform.OutputContext(t, context.Background(), opts, "expected_kms_key_arn")
+	expectedKMSKeyIdentifier := terraform.OutputContext(t, context.Background(), opts, "expected_kms_key_identifier")
 
 	require.NotEqual(t, int32(0), deploymentNumber)
-	assert.Equal(t, terraform.Output(t, opts, "expected_configuration_version"), configurationVersion)
+	assert.Equal(t, terraform.OutputContext(t, context.Background(), opts, "expected_configuration_version"), configurationVersion)
 
 	client := appConfigClient(t, region)
 	deployment, err := client.GetDeployment(context.Background(), &appconfig.GetDeploymentInput{
@@ -69,7 +69,7 @@ func appConfigClient(t *testing.T, region string) *appconfig.Client {
 func int32Output(t *testing.T, ctx types.TestContext, name string) int32 {
 	t.Helper()
 
-	value, err := strconv.ParseInt(terraform.Output(t, ctx.TerratestTerraformOptions(), name), 10, 32)
+	value, err := strconv.ParseInt(terraform.OutputContext(t, context.Background(), ctx.TerratestTerraformOptions(), name), 10, 32)
 	require.NoError(t, err)
 
 	return int32(value)
